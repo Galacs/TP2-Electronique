@@ -1,50 +1,28 @@
 #include <Arduino.h>
+#include <Wire.h>
 
-// TP1 - Manipulation 6b : detection synchronisee
-// A COMPLETER : cherchez les commentaires "TODO"
-const int PIN_OUT = 2;
-const int PIN_ENABLE = 3;
-const int PIN_LED = 13;
+// TP2
 void setup() {
-  pinMode(PIN_OUT, INPUT);
-  pinMode(PIN_ENABLE, OUTPUT);
-  pinMode(PIN_LED, OUTPUT);
-  Serial.begin(9600);
-}
-
-// Renvoie 1 : objet reellement detecte
-// 0 : rien
-// -1 : perturbation IR exterieure
-int mesureSynchronisee() {
-  digitalWrite(PIN_ENABLE, HIGH); // emetteur allume
-  delay(2); // TODO (Q22) : justifier cette attente
-  int outOn = digitalRead(PIN_OUT);
-  digitalWrite(PIN_ENABLE, LOW); // emetteur eteint
-  delay(2);
-  int outOff = digitalRead(PIN_OUT);
-  if (outOff == LOW){return -1;}
-  else if (outOn == LOW){return 1;}
-  return 0;
-// TODO : renvoyer -1 si outOff vaut LOW
-// renvoyer 1 si outOn vaut LOW (et outOff vaut HIGH)
-// renvoyer 0 dans tous les autres cas
+  Serial.begin(115200);
+  Wire.begin();
 }
 
 void loop() {
-  int r = mesureSynchronisee();
-  if (r==1){
-    digitalWrite(PIN_LED, HIGH);
-    Serial.println("Objet");
+  int nbTrouves = 0;
+  for (byte adresse = 1; adresse < 127; adresse++) {
+    Wire.beginTransmission(adresse);
+    byte erreur = Wire.endTransmission();
+    if (erreur == 0) {
+      Serial.print("Composant trouve a l’adresse 0x");
+      if (adresse < 16)
+        Serial.print("0");
+      Serial.println(adresse, HEX);
+      nbTrouves++;
+    }
   }
-  else if (r==0) {
-    digitalWrite(PIN_LED, LOW);
-    Serial.println("Rien");
+  if (nbTrouves == 0) {
+    Serial.println("Aucun composant trouve. Verifiez le cablage !");
   }
-  else {
-    digitalWrite(PIN_LED, LOW);
-    Serial.println("Pertubation IR");
-  }
-  // TODO : allumer PIN_LED uniquement si r vaut 1, et afficher
-  // "Objet", "Rien" ou "Perturbation IR !" dans le moniteur serie
-  delay(100);
+  Serial.println("---");
+  delay(3000);
 }
