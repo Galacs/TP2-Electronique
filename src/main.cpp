@@ -1,20 +1,26 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <math.h>
 
 const byte TCN75A_ADDR = 0x48; // adresse trouvee a la manipulation 1
 const byte PTR_TEMP = 0x00;
 const byte PTR_CONFIG = 0x01;
-// bits 6-5 du registre CONFIG : 00=9 bits, 01=10 bits, 10=11 bits, 11=12 bits
-const byte RESOLUTION[4] = {0b00000000, 0b00100000, 0b01000000, 0b01100000};
-const char *NOM_RESOLUTION[4] = {"9 bits (0.5 degC)", "10 bits (0.25 degC)",
-                                 "11 bits (0.125 degC)",
-                                 "12 bits (0.0625 degC)"};
-const uint16_t TCONV_TYPIQUE_MS[4] = {
-    30, 60, 120, 240}; // fiche technique, tableau ci-dessus
-void ecrireRegistre8(uint8_t pointeur, uint8_t valeur) {
+const byte PTR_THYST = 0x02;
+
+const byte PTR_TSET = 0x03;
+const byte PIN_ALERT = 2; // ALERT du module relie a la broche D2 de l’Arduino
+// A ADAPTER a la temperature ambiante mesuree a la manipulation 2 (visez un
+// TSET environ 2 a 3 degC au-dessus de l’ambiante, pour pouvoir le declencher
+// facilement avec la chaleur des doigts) :
+const float TEMPERATURE_TSET = 26.0; // seuil haut : declenchement de l’alerte
+const float TEMPERATURE_THYST =
+    25.0; // seuil bas : arret de l’alerte (hysteresis)
+void ecrireRegistre16(uint8_t pointeur, float temperatureC) {
+  int16_t code = (int16_t)round(temperatureC * 256.0);
   Wire.beginTransmission(TCN75A_ADDR);
   Wire.write(pointeur);
-  Wire.write(valeur);
+  Wire.write((code >> 8) & 0xFF); // MSB
+  Wire.write(code & 0xFF);        // LSB
   Wire.endTransmission();
 }
 float lireTemperatureEnC() {
@@ -30,18 +36,26 @@ float lireTemperatureEnC() {
 void setup() {
   Wire.begin();
   Serial.begin(115200);
+  pinMode(
+      PIN_ALERT,
+      INPUT_PULLUP); // ALERT est une sortie a collecteur ouvert, active basse
+  // Le registre CONFIG est laisse a sa valeur par defaut (0x00) : mode
+  // comparateur, polarite active-basse, fault queue = 1 (cf. partie 2.5).
+  // Seuls TSET et THYST doivent etre ecrits.
+  ecrireRegistre16(PTR_TSET, TEMPERATURE_TSET);
+  ecrireRegistre16(PTR_THYST, TEMPERATURE_THYST);
+  Serial.print("TSET regle a ");
+  Serial.print(TEMPERATURE_TSET, 1);
+  Serial.print(" degC, THYST regle a ");
+  Serial.print(TEMPERATURE_THYST, 1);
+  Serial.println(" degC.");
 }
 void loop() {
-  for (uint8_t i = 0; i < 4; i++) {
-    ecrireRegistre8(PTR_CONFIG, RESOLUTION[i]);
-    delay(TCONV_TYPIQUE_MS[i] +
-          50); // on laisse le temps a une conversion de se terminer
-    Serial.print("Resolution ");
-    Serial.print(NOM_RESOLUTION[i]);
-    Serial.print(" -> T = ");
-    Serial.print(lireTemperatureEnC(), 4);
-    Serial.println(" degC");
-    delay(3000);
-  }
-  Serial.println("---");
+  float t = lireTemperatureEnC();
+  bool alerte = (digitalRead(PIN_ALERT) == LOW); // active basse (defaut usine)
+  Serial.print("T = ");
+  Serial.print(t, 2);
+  Serial.print(" degC ALERT = ");
+  Serial.println(alerte ? "ACTIVE !" : "inactive");
+  delay(300);
 }
