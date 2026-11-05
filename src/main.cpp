@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <Wire.h>
-
 const byte BMA220_ADDR = 0x0A;
 // adresse trouvee a la manipulation 1
 const byte RANGE_00_2G = 0;
@@ -30,7 +29,6 @@ float lireAxeEnG(uint8_t registreAxe) {
   // (16.0 LSB/g pour la gamme +/-2g, cf. partie "Registres utiles")
   // et RENVOYER le resultat (instruction "return ...;")
 }
-
 void setup() {
   Wire.begin();
   Serial.begin(115200);
@@ -40,21 +38,32 @@ void setup() {
   ecrireRegistre(0x22, RANGE_00_2G);
 }
 
+unsigned long last_boom = 0;
+uint32_t booms = 0;
+
 void loop() {
   float ax = lireAxeEnG(0x04);
   float ay = lireAxeEnG(0x06);
   float az = lireAxeEnG(0x08);
-  Serial.print("x = ");
-  Serial.print(ax, 2);
-  Serial.print(" gy = ");
-  Serial.print(ay, 2);
-  Serial.print(" gz = ");
-  Serial.print(az, 2);
-  Serial.println(" g");
-  float thetaRad = atan2(ax, az);
-  float thetaDeg = thetaRad * 180.0 / PI;
-  Serial.print("angle estime = ");
-  Serial.print(thetaDeg, 1);
-  Serial.println(" deg");
-  delay(200);
+  // Serial.print("x = ");
+  // Serial.print(ax, 2);
+  // Serial.print(" gy = ");
+  // Serial.print(ay, 2);
+  // Serial.print(" gz = ");
+  // Serial.print(az, 2);
+  // Serial.println(" g");
+  float norme = sqrt(ax * ax + ay * ay + az * az);
+  float dynamique = fabs(norme - 1.0);
+  if (dynamique * 1000 > 500) {
+    if (millis() - last_boom > 20) {
+      last_boom = millis();
+      booms++;
+    }
+    Serial.println("CHOC detecte");
+    Serial.print("Pour une valeur de: ");
+    Serial.println(dynamique);
+    Serial.print("Nombre de booms: ");
+    Serial.println(booms);
+  }
+  delay(5);
 }
