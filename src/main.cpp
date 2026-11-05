@@ -1,27 +1,26 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+const byte BMA220_ADDR = 0x0A;
+// A REMPLACER par l’adresse trouvee au scan
+uint8_t lireRegistre(uint8_t registre) {
+  Wire.beginTransmission(BMA220_ADDR);
+  Wire.write(registre);
+  Wire.endTransmission(false);
+  // repeated start : on garde le bus ouvert
+  Wire.requestFrom(BMA220_ADDR, (uint8_t)1);
+  return Wire.read();
+}
 void setup() {
   Wire.begin();
   Serial.begin(115200);
-  Serial.println("Scan du bus I2C...");
-}
-void loop() {
-  int nbTrouves = 0;
-  for (byte adresse = 1; adresse < 127; adresse++) {
-    Wire.beginTransmission(adresse);
-    byte erreur = Wire.endTransmission();
-    if (erreur == 0) {
-      Serial.print("Composant trouve a l’adresse 0x");
-      if (adresse < 16)
-        Serial.print("0");
-      Serial.println(adresse, HEX);
-      nbTrouves++;
-    }
+  uint8_t id = lireRegistre(0x00);
+  Serial.print("chip_id lu : 0x");
+  Serial.println(id, HEX);
+  if (id == 0xDD) {
+    Serial.println("-> BMA220 identifie avec succes !");
+  } else {
+    Serial.println("-> Valeur inattendue : verifiez l’adresse et le cablage.");
   }
-  if (nbTrouves == 0) {
-    Serial.println("Aucun composant trouve. Verifiez le cablage !");
-  }
-  Serial.println("---");
-  delay(3000);
 }
+void loop() {}
