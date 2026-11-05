@@ -21,7 +21,7 @@ void ecrireRegistre(uint8_t registre, uint8_t valeur) {
 float lireAxeEnG(uint8_t registreAxe) {
   uint8_t brut = lireRegistre(registreAxe);
   int8_t valeurSignee = (int8_t)brut;
-  return (valeurSignee >> 2)/16.0;
+  return (valeurSignee >> 2) / 16.0;
   // TODO : convertir "brut" (uint8_t, 8 bits) en entier SIGNE sur 8 bits
   // (indice : un simple cast (int8_t) suffit)
   // TODO : decaler ce nombre signe de 2 bits vers la droite (>> 2)
@@ -51,5 +51,10 @@ void loop() {
   Serial.print(" gz = ");
   Serial.print(az, 2);
   Serial.println(" g");
+  float thetaRad = atan2(ax, az);
+  float thetaDeg = thetaRad * 180.0 / PI;
+  Serial.print("angle estime = ");
+  Serial.print(thetaDeg, 1);
+  Serial.println(" deg");
   delay(200);
 }
